@@ -32,3 +32,34 @@ export interface ChatResponse {
   response: string;
   error?: string;
 }
+
+export interface NewsItem {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  summary?: string | null;
+  imageUrl?: string | null;
+  published: boolean;
+  createdAt: Date;
+}
+
+export interface EventItem {
+  id: string;
+  title: string;
+  description: string;
+  location?: string | null;
+  startDate: Date;
+  endDate?: Date | null;
+  imageUrl?: string | null;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  position: string;
+  bio?: string | null;
+  photoUrl?: string | null;
+  order: number;
+  socials?: string | null;
+}

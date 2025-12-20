@@ -57,13 +57,13 @@ export default function LandingPage({ onSelectMode }: LandingPageProps) {
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-            <Link href="/coming-soon" className="hover:text-blue-600 transition-colors">
+            <Link href="/news" className="hover:text-blue-600 transition-colors">
               Berita
             </Link>
-            <Link href="/coming-soon" className="hover:text-blue-600 transition-colors">
+            <Link href="/events" className="hover:text-blue-600 transition-colors">
               Kegiatan
             </Link>
-            <Link href="/coming-soon" className="hover:text-blue-600 transition-colors">
+            <Link href="/team" className="hover:text-blue-600 transition-colors">
               Struktur Organisasi
             </Link>
           </div>
