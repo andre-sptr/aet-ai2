@@ -24,7 +24,9 @@ export default function AdminEventsPage() {
   const formatForInput = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toISOString().slice(0, 16); 
+    const offset = date.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    return localISOTime;
   };
 
   const [formData, setFormData] = useState({

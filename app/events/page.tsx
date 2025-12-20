@@ -73,9 +73,10 @@ export default async function EventsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {events.map((event) => (
-              <div 
+              <Link 
+                href={`/events/${event.id}`} 
                 key={event.id} 
-                className="group flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative"
+                className="group flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative h-full"
               >
                 <div className="relative h-56 w-full overflow-hidden bg-slate-200">
                   {event.imageUrl ? (
@@ -103,13 +104,11 @@ export default async function EventsPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
                 </div>
 
-                {/* Content */}
                 <div className="flex flex-col flex-grow p-6">
                   <div className="flex flex-col gap-2 mb-4">
                     <div className="flex items-center text-sm font-medium text-slate-600">
                       <Clock size={16} className="text-blue-600 mr-2" />
                       {formatTime(event.startDate)} WIB
-                      {event.endDate && ` - ${formatTime(event.endDate)} WIB`}
                     </div>
                     {event.location && (
                       <div className="flex items-center text-sm font-medium text-slate-600">
@@ -128,12 +127,16 @@ export default async function EventsPage() {
                   </p>
 
                   <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                     <span className="ml-auto text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">
+                      <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">
                         {new Date(event.startDate).getFullYear()}
-                     </span>
+                      </span>
+                      
+                      <span className="text-sm font-semibold text-blue-600 flex items-center opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0 duration-300">
+                        Lihat Detail <ArrowRight size={16} className="ml-1" />
+                      </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
