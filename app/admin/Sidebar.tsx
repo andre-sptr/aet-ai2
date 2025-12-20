@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Newspaper, Calendar, Users, Home } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, Newspaper, Calendar, Users, Home, LogOut } from 'lucide-react';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const menuItems = [
     {
@@ -33,6 +34,16 @@ export default function AdminSidebar() {
       isActive: pathname.startsWith('/admin/team'),
     },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout gagal', error);
+    }
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 hidden md:block fixed h-full z-10 left-0 top-0">
@@ -64,6 +75,14 @@ export default function AdminSidebar() {
             <span>Lihat Website</span>
           </Link>
         </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-lg transition font-medium"
+        >
+          <LogOut size={20} />
+          <span>Keluar</span>
+        </button>
       </nav>
     </aside>
   );
