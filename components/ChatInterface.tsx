@@ -401,6 +401,15 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
     });
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+    });
+  };
+
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -408,33 +417,45 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
     setIsLoading(true);
     try {
       let mimeType = file.type;
-      let fileToUpload: Blob | File = file;
-
+      let base64Content = '';
+      
       if (file.type.startsWith('image/')) {
-        const compressedDataUrl = await compressImage(file);
+        base64Content = await compressImage(file);
         mimeType = 'image/jpeg';
-        
-        const res = await fetch(compressedDataUrl);
-        fileToUpload = await res.blob();
-      } 
-      else {
+      } else {
         if (file.size > 5 * 1024 * 1024) {
           alert('Ukuran file dokumen terlalu besar (Max 5MB)');
+          setIsLoading(false);
           return;
         }
+        base64Content = await fileToBase64(file);
       }
 
-      const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
-        method: 'POST',
-        body: fileToUpload,
-      });
+      let publicUrl = '';
+      try {
+        let fileToUpload: Blob | File = file;
+        if (file.type.startsWith('image/')) {
+            const res = await fetch(base64Content);
+            fileToUpload = await res.blob();
+        }
 
-      if (!response.ok) throw new Error('Upload gagal ke server');
+        const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            body: fileToUpload,
+        });
 
-      const newBlob = await response.json();
+        if (response.ok) {
+            const newBlob = await response.json();
+            publicUrl = newBlob.url;
+        } else {
+            console.warn("Gagal upload ke Vercel Blob, menggunakan mode lokal.");
+        }
+      } catch (uploadError) {
+        console.warn("Upload error:", uploadError);
+      }
 
       setAttachment({
-        content: newBlob.url,
+        content: base64Content, 
         mimeType: mimeType,
         type: mimeType.startsWith('image/') ? 'image' : 'file',
         fileName: file.name
@@ -442,7 +463,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
       
     } catch (error) {
       console.error('Error processing file:', error);
-      alert('Gagal mengunggah file. Silakan coba lagi.');
+      alert('Gagal memproses file. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
       e.target.value = '';
