@@ -18,7 +18,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
   const [attachment, setAttachment] = useState<{ content: string; mimeType: string; type: 'image' | 'file'; fileName: string; } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isModelOpen, setIsModelOpen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini/gemini-2.5-flash');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeTools, setActiveTools] = useState<string[]>([]);
@@ -33,199 +33,136 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
   const modelsBtnRef = useRef<HTMLButtonElement>(null);
 
   const AVAILABLE_TOOLS = [
-    { 
-      id: 'calculator', 
-      name: 'Kalkulator', 
-      desc: 'Operasi matematika', 
+    {
+      id: 'calculator',
+      name: 'Kalkulator',
+      desc: 'Operasi matematika',
       icon: Calculator,
       color: 'text-orange-500 bg-orange-50'
     },
-    { 
-      id: 'time', 
-      name: 'Waktu Dunia', 
-      desc: 'Cek zona waktu', 
+    {
+      id: 'time',
+      name: 'Waktu Dunia',
+      desc: 'Cek zona waktu',
       icon: Clock,
       color: 'text-violet-500 bg-violet-50'
     },
-    { 
-      id: 'weather', 
-      name: 'Cuaca', 
-      desc: 'Info cuaca live', 
+    {
+      id: 'weather',
+      name: 'Cuaca',
+      desc: 'Info cuaca live',
       icon: CloudSun,
       color: 'text-sky-500 bg-sky-50'
     },
-    { 
-      id: 'currency', 
-      name: 'Kurs Mata Uang', 
-      desc: 'Konversi valas', 
+    {
+      id: 'currency',
+      name: 'Kurs Mata Uang',
+      desc: 'Konversi valas',
       icon: Coins,
       color: 'text-emerald-500 bg-emerald-50'
     },
-    { 
-      id: 'scraper', 
-      name: 'Web Reader', 
-      desc: 'Baca konten link', 
+    {
+      id: 'scraper',
+      name: 'Web Reader',
+      desc: 'Baca konten link',
       icon: Globe,
       color: 'text-indigo-500 bg-indigo-50'
     },
-    { 
-      id: 'web_search', 
-      name: 'Web Search', 
-      desc: 'Link pencarian', 
-      icon: Search, 
+    {
+      id: 'web_search',
+      name: 'Web Search',
+      desc: 'Link pencarian',
+      icon: Search,
       color: 'text-blue-600 bg-blue-50'
     },
-    { 
-      id: 'email_validator', 
-      name: 'Cek Email', 
-      desc: 'Validasi format', 
-      icon: MailCheck, 
+    {
+      id: 'email_validator',
+      name: 'Cek Email',
+      desc: 'Validasi format',
+      icon: MailCheck,
       color: 'text-red-500 bg-red-50'
     },
-    { 
+    {
       id: 'password_gen',
-      name: 'Password Gen', 
-      desc: 'Buat sandi kuat', 
+      name: 'Password Gen',
+      desc: 'Buat sandi kuat',
       icon: KeyRound,
       color: 'text-slate-600 bg-slate-100'
     },
-    { 
-      id: 'flowchart', 
-      name: 'Flowchart', 
-      desc: 'Alur proses', 
-      icon: Workflow, 
+    {
+      id: 'flowchart',
+      name: 'Flowchart',
+      desc: 'Alur proses',
+      icon: Workflow,
       color: 'text-purple-600 bg-purple-50'
     },
-    { 
-      id: 'units', 
-      name: 'Konversi Unit', 
-      desc: 'Jarak, Berat, Suhu', 
+    {
+      id: 'units',
+      name: 'Konversi Unit',
+      desc: 'Jarak, Berat, Suhu',
       icon: Ruler,
       color: 'text-pink-500 bg-pink-50'
     },
-    { 
-      id: 'data_analysis', 
-      name: 'Analisis Data', 
-      desc: 'Statistik angka', 
+    {
+      id: 'data_analysis',
+      name: 'Analisis Data',
+      desc: 'Statistik angka',
       icon: BarChart3,
       color: 'text-cyan-500 bg-cyan-50'
     },
-    { 
-      id: 'colors', 
-      name: 'Cek Warna', 
-      desc: 'Hex <-> RGB', 
+    {
+      id: 'colors',
+      name: 'Cek Warna',
+      desc: 'Hex <-> RGB',
       icon: Palette,
       color: 'text-fuchsia-500 bg-fuchsia-50'
     }
   ];
 
   const toggleTool = (toolId: string) => {
-    setActiveTools(prev => 
-      prev.includes(toolId) 
-        ? prev.filter(id => id !== toolId) 
-        : [...prev, toolId]               
+    setActiveTools(prev =>
+      prev.includes(toolId)
+        ? prev.filter(id => id !== toolId)
+        : [...prev, toolId]
     );
   };
 
   const models = [
-    { 
-      id: 'gemini-3-pro-preview', 
-      name: 'Gemini 3 Pro', 
-      desc: 'Penalaran logika tercanggih', 
+    {
+      id: 'gemini/gemini-3-pro-preview',
+      name: 'Gemini 3 Pro',
+      desc: 'Penalaran logika tercanggih',
       icon: Sparkles
     },
-  /*{ 
-      id: 'gemini-3-pro-image-preview', 
-      name: 'Gemini 3 Pro (Image)', 
-      desc: 'Analisis visual tingkat lanjut', 
-      icon: ImageIcon 
+    {
+      id: 'gemini/gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      desc: 'Terbaik untuk tugas kompleks',
+      icon: Sparkles
     },
-  */
-    { 
-      id: 'gemini-3-flash-preview', 
-      name: 'Gemini 3 Flash', 
-      desc: 'Super cepat untuk chat & tugas harian', 
+    {
+      id: 'gemini/gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash',
+      desc: 'Cepat, ringan & serbaguna',
       icon: Zap
     },
-    { 
-      id: 'gemini-2.5-pro', 
-      name: 'Gemini 2.5 Pro', 
-      desc: 'Terbaik untuk tugas kompleks', 
-      icon: Sparkles 
-    },
-    { 
-      id: 'gemini-2.5-flash', 
-      name: 'Gemini 2.5 Flash', 
-      desc: 'Cepat, ringan & serbaguna', 
-      icon: Zap 
-    },
-    { 
-      id: 'gemini-2.5-flash-lite', 
-      name: 'Gemini 2.5 Flash Lite', 
-      desc: 'Sangat hemat & responsif', 
+    {
+      id: 'gemini/gemini-2.5-flash-lite',
+      name: 'Gemini 2.5 Flash Lite',
+      desc: 'Sangat hemat & responsif',
       icon: Feather
     },
-  /*{ 
-      id: 'gemini-2.5-flash-image', 
-      name: 'Gemini 2.5 Flash (Image)', 
-      desc: 'Pemrosesan gambar instan', 
-      icon: ImageIcon 
+    {
+      id: 'gemini/gemini-2.0-flash',
+      name: 'Gemini 2.0 Flash',
+      desc: 'Standar kecepatan & stabil',
+      icon: Zap
     },
-  */
-    { 
-      id: 'gemini-2.0-flash', 
-      name: 'Gemini 2.0 Flash', 
-      desc: 'Standar kecepatan & stabil', 
-      icon: Zap 
-    },
-    { 
-      id: 'gemini-2.0-flash-lite', 
-      name: 'Gemini 2.0 Flash Lite', 
-      desc: 'Opsi paling efisien', 
-      icon: Feather 
-    },
-    { 
-      id: 'gemini-flash-latest', 
-      name: 'Gemini Flash', 
-      desc: 'Versi Flash terkini', 
-      icon: Zap 
-    },
-    { 
-      id: 'gemini-flash-lite-latest', 
-      name: 'Gemini Flash Lite', 
-      desc: 'Versi Lite terkini', 
-      icon: Feather 
-    },
-    { 
-      id: 'imagen-4.0-fast-generate-001', 
-      name: 'Imagen 4.0 Fast (Image)', 
-      desc: 'Generasi gambar kilat', 
-      icon: Zap 
-    },
-    { 
-      id: 'imagen-4.0-generate-001', 
-      name: 'Imagen 4.0 (Image)', 
-      desc: 'Kualitas gambar tinggi', 
-      icon: ImageIcon 
-    },
-    { 
-      id: 'imagen-4.0-ultra-generate-001', 
-      name: 'Imagen 4.0 Ultra (Image)', 
-      desc: 'Detail fotorealistik & tajam', 
-      icon: Palette 
-    },
-  /*{ 
-      id: 'veo-2.0-generate-001', 
-      name: 'Veo 2.0 (Video)', 
-      desc: 'Pembuatan konten video HD', 
-      icon: Video 
-    },
-  */
-    { 
-      id: 'gemini-robotics-er-1.5-preview', 
-      name: 'Gemini Robotics 1.5', 
-      desc: 'Spesialis spasial & robotik', 
-      icon: Bot 
+    {
+      id: 'gemini/gemini-2.0-flash-lite',
+      name: 'Gemini 2.0 Flash Lite',
+      desc: 'Opsi paling efisien',
+      icon: Feather
     },
   ];
 
@@ -236,15 +173,15 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
 
-      if (isSettingsOpen && 
-          toolsRef.current && !toolsRef.current.contains(target) && 
-          !toolsBtnRef.current?.contains(target)) {
+      if (isSettingsOpen &&
+        toolsRef.current && !toolsRef.current.contains(target) &&
+        !toolsBtnRef.current?.contains(target)) {
         setIsSettingsOpen(false);
       }
 
-      if (isModelOpen && 
-          modelsRef.current && !modelsRef.current.contains(target) && 
-          !modelsBtnRef.current?.contains(target)) {
+      if (isModelOpen &&
+        modelsRef.current && !modelsRef.current.contains(target) &&
+        !modelsBtnRef.current?.contains(target)) {
         setIsModelOpen(false);
       }
     }
@@ -254,7 +191,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isSettingsOpen, isModelOpen]); 
+  }, [isSettingsOpen, isModelOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -262,7 +199,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
 
   useEffect(() => {
     const savedHistory = localStorage.getItem(STORAGE_KEY);
-    
+
     if (savedHistory) {
       try {
         const parsedHistory = JSON.parse(savedHistory);
@@ -273,7 +210,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
         setMessages(hydratedHistory);
       } catch (error) {
         console.error("Gagal memuat riwayat chat:", error);
-        initializeGreeting(); 
+        initializeGreeting();
       }
     } else {
       initializeGreeting();
@@ -324,9 +261,9 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
           model: selectedModel,
           tools: activeTools,
           clientInfo: {
-            time: new Date().toLocaleString('id-ID', { 
-              dateStyle: 'full', 
-              timeStyle: 'medium' 
+            time: new Date().toLocaleString('id-ID', {
+              dateStyle: 'full',
+              timeStyle: 'medium'
             }),
             utcTime: new Date().toUTCString(),
           }
@@ -373,7 +310,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
           let height = img.height;
 
           const MAX_DIMENSION = 1280;
-          
+
           if (width > height) {
             if (width > MAX_DIMENSION) {
               height *= MAX_DIMENSION / width;
@@ -388,11 +325,11 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
 
           canvas.width = width;
           canvas.height = height;
-          
+
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
 
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           resolve(dataUrl);
         };
         img.onerror = (error) => reject(error);
@@ -418,7 +355,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
     try {
       let mimeType = file.type;
       let base64Content = '';
-      
+
       if (file.type.startsWith('image/')) {
         base64Content = await compressImage(file);
         mimeType = 'image/jpeg';
@@ -435,32 +372,32 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
       try {
         let fileToUpload: Blob | File = file;
         if (file.type.startsWith('image/')) {
-            const res = await fetch(base64Content);
-            fileToUpload = await res.blob();
+          const res = await fetch(base64Content);
+          fileToUpload = await res.blob();
         }
 
         const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
-            method: 'POST',
-            body: fileToUpload,
+          method: 'POST',
+          body: fileToUpload,
         });
 
         if (response.ok) {
-            const newBlob = await response.json();
-            publicUrl = newBlob.url;
+          const newBlob = await response.json();
+          publicUrl = newBlob.url;
         } else {
-            console.warn("Gagal upload ke Vercel Blob, menggunakan mode lokal.");
+          console.warn("Gagal upload ke Vercel Blob, menggunakan mode lokal.");
         }
       } catch (uploadError) {
         console.warn("Upload error:", uploadError);
       }
 
       setAttachment({
-        content: base64Content, 
+        content: base64Content,
         mimeType: mimeType,
         type: mimeType.startsWith('image/') ? 'image' : 'file',
         fileName: file.name
       });
-      
+
     } catch (error) {
       console.error('Error processing file:', error);
       alert('Gagal memproses file. Silakan coba lagi.');
@@ -478,14 +415,14 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
       role: 'user',
       content: input.trim(),
       timestamp: new Date(),
-      attachment: attachment ? { ...attachment } : undefined 
+      attachment: attachment ? { ...attachment } : undefined
     };
 
     const newHistory = [...messages, userMessage];
     setMessages(newHistory);
     setInput('');
     setAttachment(null);
-    
+
     if (inputRef.current) inputRef.current.style.height = 'auto';
 
     await processMessageToAI(newHistory);
@@ -496,7 +433,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
     const lastMessage = messages[messages.length - 1];
     let historyToRetry = [...messages];
     if (lastMessage.role === 'assistant') {
-        historyToRetry.pop();
+      historyToRetry.pop();
     }
     setMessages(historyToRetry);
     await processMessageToAI(historyToRetry);
@@ -523,7 +460,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
-  
+
   const handleClearChat = () => {
     setIsDeleteModalOpen(true);
   };
@@ -551,12 +488,12 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            
+
             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center
-                ${mode === 'coding' ? 'bg-blue-100 text-blue-600' : 
-                  mode === 'report' ? 'bg-emerald-100 text-emerald-600' : 
-                  'bg-violet-100 text-violet-600'}`}
+                ${mode === 'coding' ? 'bg-blue-100 text-blue-600' :
+                  mode === 'report' ? 'bg-emerald-100 text-emerald-600' :
+                    'bg-violet-100 text-violet-600'}`}
               >
                 {mode === 'coding' ? (
                   <Code className="w-4 h-4" />
@@ -610,7 +547,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                 className="animate-slide-down"
                 style={{ animationDelay: `${index * 20}ms` }}
               >
-                <MessageBubble 
+                <MessageBubble
                   message={message}
                   mode={mode}
                   onRetry={handleReload}
@@ -624,7 +561,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
               </div>
             ));
           })()}
-          
+
           {isLoading && (
             <div className="flex gap-4 animate-slide-down">
               <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm mt-1 bg-gradient-to-br from-blue-600 to-indigo-600'}`}>
@@ -671,7 +608,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                   </p>
                 </div>
 
-                <button 
+                <button
                   onClick={() => setAttachment(null)}
                   className="p-1.5 ml-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
                 >
@@ -681,18 +618,18 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
             </div>
           )}
 
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileSelect} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
             accept="image/*, application/pdf"
           />
 
-          <input 
-            type="file" 
-            ref={cameraInputRef} 
-            onChange={handleFileSelect} 
+          <input
+            type="file"
+            ref={cameraInputRef}
+            onChange={handleFileSelect}
             className="hidden"
             accept="image/*"
             capture="environment"
@@ -700,8 +637,8 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
 
           <div className="relative bg-white rounded-3xl shadow-[0_0_40px_-10px_rgba(0,0,0,0.08)] border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-shadow flex items-end">
             <div className="flex items-center gap-1 pl-3 pb-3">
-              <button 
-                onClick={() => fileInputRef.current?.click()} 
+              <button
+                onClick={() => fileInputRef.current?.click()}
                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                 title="Upload File"
                 disabled={isLoading}
@@ -709,7 +646,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                 <Paperclip className="w-5 h-5" />
               </button>
 
-              <button 
+              <button
                 onClick={() => cameraInputRef.current?.click()}
                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                 title="Kamera"
@@ -722,8 +659,8 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                   ref={toolsBtnRef}
                   onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                   className={`p-2 rounded-xl transition-colors transition-transform active:scale-95
-                    ${isSettingsOpen 
-                      ? 'bg-slate-100 text-slate-700' 
+                    ${isSettingsOpen
+                      ? 'bg-slate-100 text-slate-700'
                       : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'}
                   `}
                   title="Tools Settings"
@@ -736,7 +673,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                 </button>
 
                 {isSettingsOpen && (
-                  <> 
+                  <>
                     <div ref={toolsRef} className="absolute bottom-full left-0 mb-3 w-64 p-2 bg-white rounded-2xl shadow-2xl shadow-slate-300/50 border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-200 origin-bottom-left">
                       <div className="px-3 py-2 border-b border-slate-50 mb-1">
                         <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -779,10 +716,10 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                           );
                         })}
                       </div>
-                      
+
                       {activeTools.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-slate-50">
-                          <button 
+                          <button
                             onClick={() => { setActiveTools([]); setIsSettingsOpen(false); }}
                             className="w-full py-1.5 text-[10px] font-medium text-slate-400 hover:text-red-500 transition-colors"
                           >
@@ -816,22 +753,22 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                   disabled={isLoading}
                   className={`
                     group flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 border
-                    ${isModelOpen 
-                      ? 'bg-blue-50 border-blue-200 text-blue-600' 
+                    ${isModelOpen
+                      ? 'bg-blue-50 border-blue-200 text-blue-600'
                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'}
                   `}
                   title="Ganti Model AI"
                 >
                   <span className="opacity-90">Model</span>
-                  <ChevronDown 
+                  <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-300 text-slate-400 group-hover:text-slate-600
                       ${isModelOpen ? 'rotate-180' : ''}
-                    `} 
+                    `}
                   />
                 </button>
 
                 {isModelOpen && (
-                  <>                 
+                  <>
                     <div ref={modelsRef} className="absolute bottom-full right-0 mb-3 w-64 p-1.5 bg-white rounded-2xl shadow-2xl shadow-slate-300/50 border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-200 origin-bottom-right">
                       <div className="px-3 py-2 mb-1 border-b border-slate-50 flex items-center justify-between">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -841,12 +778,12 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                           {modeTitle}
                         </span>
                       </div>
-                      
+
                       <div className="space-y-1 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                         {models.map((m) => {
                           const Icon = m.icon;
                           const isSelected = selectedModel === m.id;
-                          
+
                           return (
                             <button
                               key={m.id}
@@ -856,8 +793,8 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                               }}
                               className={`
                                 w-full flex items-start gap-3 p-2 rounded-xl text-left transition-all duration-200 group
-                                ${isSelected 
-                                  ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' 
+                                ${isSelected
+                                  ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
                                   : 'hover:bg-slate-50 text-slate-700'}
                               `}
                             >
@@ -867,7 +804,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                               `}>
                                 <Icon className="w-4 h-4" />
                               </div>
-                              
+
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
                                   <span className={`text-xs font-bold truncate ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>
@@ -883,7 +820,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                           );
                         })}
                       </div>
-                      
+
                       <div className="mt-2 px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
                         <p className="text-[9px] text-slate-400 text-center leading-tight">
                           Gunakan <strong>2.5 Pro</strong> untuk tugas kompleks dan analisis mendalam.
@@ -909,7 +846,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
 
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-          <div 
+          <div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
             onClick={() => setIsDeleteModalOpen(false)}
           />
@@ -923,7 +860,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
               <h3 className="text-lg font-bold text-slate-900 mb-2">
                 Hapus Percakapan?
               </h3>
-              
+
               <p className="text-sm text-slate-500 mb-6 leading-relaxed">
                 Anda akan menghapus semua riwayat chat di sesi ini. Tindakan ini tidak dapat dibatalkan.
               </p>
@@ -935,7 +872,7 @@ export default function ChatInterface({ mode, modeTitle, onBack }: ChatInterface
                 >
                   Batal
                 </button>
-                
+
                 <button
                   onClick={confirmClearChat}
                   className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
