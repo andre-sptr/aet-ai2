@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ChatMode } from '@/types';
-import { put } from '@vercel/blob';
 import mammoth from 'mammoth';
 import fs from 'fs';
 import path from 'path';
+import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
 
-// Sumopod API Configuration
-const SUMOPOD_API_URL = 'https://ai.sumopod.com/v1/chat/completions';
-const SUMOPOD_API_KEY = process.env.SUMOPOD_API_KEY || '';
+// === Google Gemini AI Studio Configuration ===
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const COMMON_SYSTEM = `
 Kamu adalah asisten AI Himpunan Mahasiswa AET PCR. Kamu dibuat oleh *Andre Saputra, S.Tr.T. e16[G'21 TET PCR]*
@@ -53,11 +53,13 @@ Mode DAILY:
 `.trim(),
 };
 
-function cleanBase64(base64: string) {
+// === Util: Clean base64 data URL prefix ===
+function cleanBase64(base64: string): string {
   return base64.replace(/^data:(.*,)?/, '');
 }
 
-async function fetchWeather(city: string) {
+// === Tool: Weather ===
+async function fetchWeather(city: string): Promise<string | null> {
   try {
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=id&format=json`;
     const geoRes = await fetch(geoUrl);
@@ -66,11 +68,9 @@ async function fetchWeather(city: string) {
     if (!geoData.results || geoData.results.length === 0) return null;
 
     const { latitude, longitude, name, admin1, country } = geoData.results[0];
-
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`;
     const weatherRes = await fetch(weatherUrl);
     const weatherData = await weatherRes.json();
-
     const current = weatherData.current;
 
     const weatherCodes: Record<number, string> = {
@@ -97,6 +97,7 @@ async function fetchWeather(city: string) {
   }
 }
 
+// === Tool: Currency ===
 const CURRENCY_MAP: Record<string, string> = {
   'dolar': 'USD', 'dollar': 'USD', 'usd': 'USD', 'as': 'USD', 'us': 'USD',
   'rupiah': 'IDR', 'idr': 'IDR', 'indo': 'IDR', 'rp': 'IDR',
@@ -110,7 +111,7 @@ const CURRENCY_MAP: Record<string, string> = {
   'riyal': 'SAR', 'sar': 'SAR', 'arab': 'SAR'
 };
 
-async function fetchCurrency(amountStr: string | undefined, from: string, to: string | undefined) {
+async function fetchCurrency(amountStr: string | undefined, from: string, to: string | undefined): Promise<string | null> {
   try {
     const fromCode = CURRENCY_MAP[from.toLowerCase()] || from.toUpperCase();
     const toCode = to ? (CURRENCY_MAP[to.toLowerCase()] || to.toUpperCase()) : 'IDR';
@@ -122,16 +123,8 @@ async function fetchCurrency(amountStr: string | undefined, from: string, to: st
     }
     if (isNaN(amount)) amount = 1;
 
-    console.log(`Fetching Currency: ${amount} ${fromCode} to ${toCode}`);
-
-    const res = await fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${fromCode}&to=${toCode}`, {
-      cache: 'no-store'
-    });
-
-    if (!res.ok) {
-      console.log('Currency API Error:', res.statusText);
-      return null;
-    }
+    const res = await fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${fromCode}&to=${toCode}`, { cache: 'no-store' });
+    if (!res.ok) return null;
 
     const data = await res.json();
     const rate = data.rates[toCode];
@@ -151,14 +144,15 @@ async function fetchCurrency(amountStr: string | undefined, from: string, to: st
   }
 }
 
-async function scrapeWeb(url: string) {
+// === Tool: Web Scraper ===
+async function scrapeWeb(url: string): Promise<string | null> {
   try {
-    console.log(`Scraping: ${url}`);
     const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Bot)' } });
     if (!res.ok) return null;
 
     const html = await res.text();
-    const text = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, "")
+    const text = html
+      .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, "")
       .replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, "")
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
@@ -174,14 +168,14 @@ async function scrapeWeb(url: string) {
       - Saat menyebut fakta penting: sertakan 1-2 URL sumber. Jika sumber berbeda, jelaskan perbedaan singkat.
       - Gunakan informasi di atas untuk menjawab user.
     `;
-
   } catch (e) {
     console.error('Scrape error:', e);
     return null;
   }
 }
 
-function convertUnit(value: number, from: string, to: string) {
+// === Tool: Unit Converter ===
+function convertUnit(value: number, from: string, to: string): string | null {
   const factors: Record<string, number> = {
     'm': 1, 'km': 1000, 'cm': 0.01, 'mm': 0.001, 'mi': 1609.34, 'ft': 0.3048, 'in': 0.0254,
     'kg': 1, 'g': 0.001, 'mg': 0.000001, 'lb': 0.453592, 'oz': 0.0283495,
@@ -194,7 +188,6 @@ function convertUnit(value: number, from: string, to: string) {
     let tempC = value;
     if (from === 'f') tempC = (value - 32) * 5 / 9;
     if (from === 'k') tempC = value - 273.15;
-
     let res = tempC;
     if (to === 'f') res = (tempC * 9 / 5) + 32;
     if (to === 'k') res = tempC + 273.15;
@@ -210,7 +203,8 @@ function convertUnit(value: number, from: string, to: string) {
   return null;
 }
 
-function analyzeDataNumbers(text: string) {
+// === Tool: Data Analysis ===
+function analyzeDataNumbers(text: string): string | null {
   const nums = text.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
   if (!nums || nums.length < 3) return null;
 
@@ -219,8 +213,9 @@ function analyzeDataNumbers(text: string) {
   const min = Math.min(...nums);
   const max = Math.max(...nums);
   const sorted = [...nums].sort((a, b) => a - b);
-  const median = sorted.length % 2 !== 0 ? sorted[Math.floor(sorted.length / 2)] :
-    (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+  const median = sorted.length % 2 !== 0
+    ? sorted[Math.floor(sorted.length / 2)]
+    : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
 
   return `
   [ANALISIS DATA]
@@ -236,7 +231,8 @@ function analyzeDataNumbers(text: string) {
   `;
 }
 
-function processColor(text: string) {
+// === Tool: Color Processor ===
+function processColor(text: string): string | null {
   const hexMatch = text.match(/#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
   if (hexMatch) {
     let hex = hexMatch[1];
@@ -258,7 +254,8 @@ function processColor(text: string) {
   return null;
 }
 
-function validateEmail(email: string) {
+// === Tool: Email Validator ===
+function validateEmail(email: string): string {
   const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   const isValid = re.test(email);
   const domain = email.split('@')[1];
@@ -272,23 +269,21 @@ function validateEmail(email: string) {
   - Ini hanya cek format (regex), bukan verifikasi email aktif/terdaftar.`;
 }
 
-function generatePassword(req: string) {
+// === Tool: Password Generator ===
+function generatePassword(req: string): string {
   const lengthMatch = req.match(/\b(\d+)\b/);
   let length = lengthMatch ? parseInt(lengthMatch[1]) : 12;
-
   if (length < 4) length = 4;
   if (length > 64) length = 64;
 
   const useSpecial = /(simbol|unik|spesial|tanda|karakter)/i.test(req);
-
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const special = "!@#$%^&*()_+~`|}{[]:;?><,./-=";
   const charset = useSpecial ? chars + special : chars;
 
   let password = "";
   for (let i = 0; i < length; ++i) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
+    password += charset[Math.floor(Math.random() * charset.length)];
   }
 
   return `
@@ -299,37 +294,32 @@ function generatePassword(req: string) {
   - INSTRUKSI: Berikan password ini kepada user.`;
 }
 
-async function searchTavily(query: string) {
+// === Tool: Tavily Web Search ===
+async function searchTavily(query: string): Promise<string | null> {
   try {
     const apiKey = process.env.TAVILY_API_KEY;
     if (!apiKey) return '[ERROR] TAVILY_API_KEY belum dikonfigurasi di .env';
-
-    console.log(`Tavily Searching: ${query}`);
 
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         api_key: apiKey,
-        query: query,
+        query,
         search_depth: "basic",
         include_answer: true,
         max_results: 5
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Tavily API Error: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Tavily API Error: ${response.statusText}`);
 
     const data = await response.json();
     let resultText = `[HASIL PENCARIAN TAVILY UNTUK: "${query}"]\n`;
 
-    if (data.answer) {
-      resultText += `- Jawaban Singkat: ${data.answer}\n`;
-    }
+    if (data.answer) resultText += `- Jawaban Singkat: ${data.answer}\n`;
 
-    data.results.forEach((res: any, idx: number) => {
+    data.results.forEach((res: { title: string; url: string; content: string }, idx: number) => {
       resultText += `\n${idx + 1}. ${res.title}\n   URL: ${res.url}\n   Isi: ${res.content.substring(0, 300)}...\n`;
     });
 
@@ -341,53 +331,95 @@ async function searchTavily(query: string) {
     `;
 
     return resultText;
-
   } catch (error) {
     console.error('Tavily Search Error:', error);
     return null;
   }
 }
 
-// Helper function to call Sumopod API
-async function callSumopodAPI(
-  model: string,
-  systemPrompt: string,
-  messages: Array<{ role: string; content: string | any[] }>,
-  options?: { maxTokens?: number; temperature?: number }
-) {
-  const apiMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages
-  ];
+// === Core: Call Google Gemini API ===
+async function callGeminiAPI(
+  modelId: string,
+  systemInstruction: string,
+  messages: Array<{ role: string; content: string | { type: string; text?: string; image_url?: { url: string } }[] }>,
+): Promise<string> {
+  // Map model ID: strip "gemini/" prefix jika ada
+  const cleanModelId = modelId.replace(/^gemini\//, '');
 
-  const response = await fetch(SUMOPOD_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUMOPOD_API_KEY}`
+  const model = genAI.getGenerativeModel({
+    model: cleanModelId,
+    systemInstruction: systemInstruction,
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.7,
     },
-    body: JSON.stringify({
-      model: model,
-      messages: apiMessages,
-      max_tokens: options?.maxTokens || 8192,
-      temperature: options?.temperature || 0.7
-    })
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Sumopod API Error: ${response.status} - ${errorText}`);
+  // Build history (semua kecuali pesan terakhir)
+  const history: Content[] = [];
+
+  for (const msg of messages.slice(0, -1)) {
+    const role = msg.role === 'user' ? 'user' : 'model';
+
+    if (Array.isArray(msg.content)) {
+      // Multimodal message
+      const parts: Part[] = [];
+      for (const part of msg.content) {
+        if (part.type === 'text' && part.text) {
+          parts.push({ text: part.text });
+        } else if (part.type === 'image_url' && part.image_url?.url) {
+          const url = part.image_url.url;
+          const base64Data = cleanBase64(url);
+          const mimeType = url.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+          parts.push({
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType as 'image/jpeg' | 'image/png',
+            }
+          });
+        }
+      }
+      history.push({ role, parts });
+    } else {
+      history.push({ role, parts: [{ text: msg.content as string }] });
+    }
   }
 
-  const data = await response.json();
-  return data.choices[0]?.message?.content || '';
+  // Build last user message
+  const lastMsg = messages[messages.length - 1];
+  const lastParts: Part[] = [];
+
+  if (Array.isArray(lastMsg.content)) {
+    for (const part of lastMsg.content) {
+      if (part.type === 'text' && part.text) {
+        lastParts.push({ text: part.text });
+      } else if (part.type === 'image_url' && part.image_url?.url) {
+        const url = part.image_url.url;
+        const base64Data = cleanBase64(url);
+        const mimeType = url.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+        lastParts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType as 'image/jpeg' | 'image/png',
+          }
+        });
+      }
+    }
+  } else {
+    lastParts.push({ text: lastMsg.content as string });
+  }
+
+  const chat = model.startChat({ history });
+  const result = await chat.sendMessage(lastParts);
+  return result.response.text();
 }
 
+// === API Route Handler ===
 export async function POST(req: NextRequest) {
   try {
-    if (!SUMOPOD_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: 'SUMOPOD_API_KEY is not configured' },
+        { error: 'GEMINI_API_KEY is not configured in .env' },
         { status: 500 }
       );
     }
@@ -395,62 +427,46 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { messages, mode, model: userModel, tools, clientInfo } = body;
 
-    // Map model names to Sumopod format (gemini/ prefix)
-    let sumopodModel = userModel || 'gemini/gemini-2.5-flash';
-
-    // Add gemini/ prefix if not present and it's a gemini model
-    if (!sumopodModel.startsWith('gemini/') && sumopodModel.startsWith('gemini')) {
-      sumopodModel = `gemini/${sumopodModel}`;
-    }
-
-    // Handle Imagen models separately (image generation)
-    if (userModel && userModel.toLowerCase().includes('imagen')) {
-      // For imagen models, we'll use a text model to generate a description
-      // since Sumopod doesn't support imagen directly
-      const lastMessage = messages[messages.length - 1].content;
-
-      return NextResponse.json({
-        response: `⚠️ Model Imagen tidak tersedia melalui Sumopod API. Silakan gunakan model Gemini untuk chat. Prompt gambar Anda: "${lastMessage}"`
-      });
-    }
-
     if (!messages || messages.length === 0) {
-      return NextResponse.json(
-        { error: 'No messages provided' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
     }
 
-    let finalSystemInstruction = BASE_SYSTEM_INSTRUCTIONS[mode as ChatMode] || '';
-    const lastUserMessage = messages[messages.length - 1].content.toLowerCase();
+    // Default model
+    const modelId = userModel || 'gemini-2.5-flash';
 
+    let finalSystemInstruction = BASE_SYSTEM_INSTRUCTIONS[mode as ChatMode] || BASE_SYSTEM_INSTRUCTIONS.daily;
+    const lastUserMessage = (typeof messages[messages.length - 1].content === 'string'
+      ? messages[messages.length - 1].content
+      : messages[messages.length - 1].content?.[0]?.text || ''
+    ).toLowerCase();
+
+    // === Inject AET Knowledge ===
     if (lastUserMessage.includes('aet')) {
       try {
-        const docxPath = path.join(process.cwd(), 'public', 'AETPCR.docx');
+        const docxPath = path.join(process.cwd(), 'app', 'AETPCR.docx');
+        const altPath = path.join(process.cwd(), 'public', 'AETPCR.docx');
+        const filePath = fs.existsSync(docxPath) ? docxPath : fs.existsSync(altPath) ? altPath : null;
 
-        if (fs.existsSync(docxPath)) {
-          const buffer = fs.readFileSync(docxPath);
-
+        if (filePath) {
+          const buffer = fs.readFileSync(filePath);
           const result = await mammoth.extractRawText({ buffer });
-          const extractedText = result.value;
-
           finalSystemInstruction += `
           \n<<<TOOL_DATA_START>>>
           [DATA REFERENSI RESMI AET PCR]
-          ${extractedText}
+          ${result.value}
           <<<TOOL_DATA_END>>>
           \nINSTRUKSI: User sedang bertanya tentang AET. Gunakan DATA REFERENSI di atas sebagai satu-satunya sumber valid untuk menjawab. Jelaskan secara lengkap dan detil. Jika tidak ada di data, katakan tidak tahu.
           `;
-
-          console.log("Data AET berhasil dimuat ke prompt.");
         }
       } catch (error) {
         console.error("Gagal membaca file docx:", error);
       }
     }
 
+    // === Inject Active Tools ===
     if (tools && tools.length > 0) {
       finalSystemInstruction += '\n\n=== SYSTEM TOOLS ACTIVATED ===\n';
+
       if (tools.includes('time')) {
         finalSystemInstruction += `\n[TOOL: WAKTU DUNIA]
         - Waktu Lokal User: ${clientInfo?.time}
@@ -460,137 +476,109 @@ export async function POST(req: NextRequest) {
           - Jika lokasi memakai DST atau user tidak sebut tanggal, minta tanggal/kota spesifik.
         - Contoh: Jika UTC jam 12:00 dan user tanya WIB, jawab jam 19:00 (UTC+7).`;
       }
+
       if (tools.includes('weather')) {
         const weatherMatch = lastUserMessage.match(/(?:cuaca|weather)\s+(?:di|in|at)\s+([a-zA-Z\s]+)/i);
-
-        if (weatherMatch && weatherMatch[1]) {
-          const city = weatherMatch[1].trim();
-          const weatherInfo = await fetchWeather(city);
-
+        if (weatherMatch?.[1]) {
+          const weatherInfo = await fetchWeather(weatherMatch[1].trim());
           if (weatherInfo) {
             finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${weatherInfo}\n<<<TOOL_DATA_END>>>`;
           } else {
-            finalSystemInstruction += `\n[INFO] Gagal mengambil data cuaca untuk ${city}. Beritahu user untuk cek nama kota.`;
+            finalSystemInstruction += `\n[INFO] Gagal mengambil data cuaca. Beritahu user untuk cek nama kota.`;
           }
         } else {
-          finalSystemInstruction += `\n[TOOL: CUACA]
-          - Fitur aktif. Jika user ingin tahu cuaca, minta mereka mengetik format: "Cuaca di [Nama Kota]".`;
+          finalSystemInstruction += `\n[TOOL: CUACA]\n- Fitur aktif. Jika user ingin tahu cuaca, minta mereka mengetik format: "Cuaca di [Nama Kota]".`;
         }
       }
+
       if (tools.includes('calculator')) {
-        finalSystemInstruction += `\n[TOOL: KALKULATOR]
-        - Jika pengguna meminta perhitungan matematika, hitung dengan teliti.
-        - Berikan langkah-langkah perhitungan jika diminta.`;
+        finalSystemInstruction += `\n[TOOL: KALKULATOR]\n- Jika pengguna meminta perhitungan matematika, hitung dengan teliti.\n- Berikan langkah-langkah perhitungan jika diminta.`;
       }
+
       if (tools.includes('currency')) {
         const mapKeys = Object.keys(CURRENCY_MAP).join('|');
         const commonCodes = "USD|IDR|EUR|GBP|JPY|AUD|SGD|MYR|CNY|KRW|SAR|THB|VND|HKD|CAD";
-
         const currencyRegex = new RegExp(
-          `(?:(\\d+(?:[\\.,]\\d+)?)\\s*)?\\b(${mapKeys}|${commonCodes})\\b(?:\\s*(?:ke|to|in|=|->|\\s)\\s*\\b(${mapKeys}|${commonCodes})\\b)?`,
-          'i'
+          `(?:(\\d+(?:[\\.,]\\d+)?)\\s*)?\\b(${mapKeys}|${commonCodes})\\b(?:\\s*(?:ke|to|in|=|->|\\s)\\s*\\b(${mapKeys}|${commonCodes})\\b)?`, 'i'
         );
-
         const currencyMatch = lastUserMessage.match(currencyRegex);
 
-        if (currencyMatch && currencyMatch[2]) {
-          const amountStr = currencyMatch[1];
-          const fromCurr = currencyMatch[2];
-          const toCurr = currencyMatch[3];
-
-          const currencyInfo = await fetchCurrency(amountStr, fromCurr, toCurr);
-
+        if (currencyMatch?.[2]) {
+          const currencyInfo = await fetchCurrency(currencyMatch[1], currencyMatch[2], currencyMatch[3]);
           if (currencyInfo) {
             finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${currencyInfo}\n<<<TOOL_DATA_END>>>`;
           }
         }
-
-        finalSystemInstruction += `\n[TOOL: KURS]
-        - Fitur konversi mata uang sedang aktif.
-        - PENTING: Jika pengguna bertanya tentang nilai tukar/kurs tetapi Data Kurs Real-time TIDAK ditemukan di atas, itu berarti format pengguna salah.
-        - JANGAN berikan data kadaluwarsa dari ingatanmu.
-        - Sampaikan pesan ini kepada pengguna: "Untuk melihat kurs real-time terkini, silakan ketik nominal dan mata uangnya secara lengkap. Contoh: '10 USD ke IDR' atau '1000 Won to Rupiah'."`;
+        finalSystemInstruction += `\n[TOOL: KURS]\n- Fitur aktif. PENTING: Jika data kurs tidak ditemukan di atas, JANGAN berikan data dari ingatan. Minta format: "10 USD ke IDR".`;
       }
+
       if (tools.includes('scraper')) {
         const urlMatch = lastUserMessage.match(/(https?:\/\/[^\s]+)/);
         if (urlMatch) {
           const webData = await scrapeWeb(urlMatch[0]);
-          if (webData) finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n$${webData}\n<<<TOOL_DATA_END>>>`;
+          if (webData) finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${webData}\n<<<TOOL_DATA_END>>>`;
         }
       }
+
       if (tools.includes('units')) {
         const unitMatch = lastUserMessage.match(/(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\s*(?:ke|to|in|=)\s*([a-zA-Z]+)/i);
         if (unitMatch) {
-          const val = parseFloat(unitMatch[1]);
-          const fromUnit = unitMatch[2];
-          const toUnit = unitMatch[3];
-          const result = convertUnit(val, fromUnit, toUnit);
-
+          const result = convertUnit(parseFloat(unitMatch[1]), unitMatch[2], unitMatch[3]);
           if (result) {
-            finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${val} ${fromUnit} = ${result} ${toUnit}\n<<<TOOL_DATA_END>>>`;
+            finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${unitMatch[1]} ${unitMatch[2]} = ${result} ${unitMatch[3]}\n<<<TOOL_DATA_END>>>`;
           }
         }
       }
+
       if (tools.includes('data_analysis')) {
         if (lastUserMessage.match(/(?:analisis|statistik|data)/i)) {
           const analysisResult = analyzeDataNumbers(lastUserMessage);
           if (analysisResult) finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${analysisResult}\n<<<TOOL_DATA_END>>>`;
         }
       }
+
       if (tools.includes('colors')) {
         const colorInfo = processColor(lastUserMessage);
         if (colorInfo) finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${colorInfo}\n<<<TOOL_DATA_END>>>`;
       }
+
       if (tools.includes('email_validator')) {
         const emailMatch = lastUserMessage.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
         if (emailMatch && (lastUserMessage.includes('valid') || lastUserMessage.includes('cek'))) {
           finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${validateEmail(emailMatch[0])}\n<<<TOOL_DATA_END>>>`;
         }
       }
-      if (tools.includes('password_gen')) {
-        const isPasswordRequest = /(password|sandi|pass|kunci)/i.test(lastUserMessage);
 
-        if (isPasswordRequest) {
+      if (tools.includes('password_gen')) {
+        if (/(password|sandi|pass|kunci)/i.test(lastUserMessage)) {
           finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${generatePassword(lastUserMessage)}\n<<<TOOL_DATA_END>>>`;
         }
       }
+
       if (tools.includes('web_search')) {
         const igMatch = lastUserMessage.match(/(?:cari|lihat|cek|apa|akun)\s*(?:ig|instagram|sosmed)\s+(?:nya|dari|untuk)?\s*@?(.+)/i);
-
         let searchQuery = lastUserMessage;
         let instructionAddon = "";
 
         if (igMatch) {
-          let queryName = igMatch[1].replace(/[?]/g, '').trim();
-          queryName = queryName.replace(/^@/, '');
-
+          let queryName = igMatch[1].replace(/[?]/g, '').trim().replace(/^@/, '');
           searchQuery = `instagram.com/${queryName} official profile`;
-
           if (queryName.toLowerCase().includes('aet') && !queryName.toLowerCase().includes('pcr')) {
             searchQuery = `instagram.com/${queryName} aet pcr riau profile`;
           }
-
-          instructionAddon = `\n[FOKUS: PENCARIAN INSTAGRAM]
-           - User mencari akun IG: "${queryName}".
-           - Tavily telah memberikan hasil pencarian di atas.
-           - Cari URL yang formatnya "https://www.instagram.com/${queryName}/" atau mirip.
-           - Jika ketemu, JANGAN RAGU. Langsung berikan linknya.`;
+          instructionAddon = `\n[FOKUS: PENCARIAN INSTAGRAM]\n - User mencari akun IG: "${queryName}".\n - Cari URL yang formatnya "https://www.instagram.com/${queryName}/" atau mirip.\n - Jika ketemu, JANGAN RAGU. Langsung berikan linknya.`;
         } else {
-          instructionAddon = `\n[FOKUS: RANGKUMAN WEB]
-            - Gunakan data dari Tavily di atas untuk menjawab pertanyaan user.
-            - Buat rangkuman yang detail, informatif, dan tidak terlalu pendek.
-            - Sertakan sumber (URL) jika relevan.`;
+          instructionAddon = `\n[FOKUS: RANGKUMAN WEB]\n - Gunakan data dari Tavily di atas untuk menjawab pertanyaan user.\n - Buat rangkuman yang detail, informatif, dan tidak terlalu pendek.\n - Sertakan sumber (URL) jika relevan.`;
         }
-        const searchResults = await searchTavily(searchQuery);
 
+        const searchResults = await searchTavily(searchQuery);
         if (searchResults) {
           finalSystemInstruction += `\n<<<TOOL_DATA_START>>>\n${searchResults}${instructionAddon}\n<<<TOOL_DATA_END>>>`;
-        } else {
-          finalSystemInstruction += `\n[INFO] Gagal melakukan pencarian web. Beritahu user untuk mencoba lagi nanti.`;
         }
       }
+
       const isDiagramRequest = lastUserMessage.match(/(buat|gambarkan|susun|bikin|tampilkan|contoh|berikan)\s+(diagram|flowchart|alur|skema|struktur|grafik|mindmap)/i);
-      if (isDiagramRequest || (tools && tools.includes('flowchart'))) {
+      if (isDiagramRequest || tools.includes('flowchart')) {
         finalSystemInstruction += `
             \n[TOOL: DIAGRAM/FLOWCHART]
             - User meminta visualisasi (Diagram/Flowchart).
@@ -612,68 +600,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Convert messages to OpenAI format
-    const apiMessages = messages.slice(0, -1).map((msg: any) => {
-      // Handle messages with attachments
+    // === Format messages for Gemini API ===
+    const apiMessages = messages.map((msg: { role: string; content: string; attachment?: { content: string; mimeType: string } }) => {
       if (msg.attachment) {
         return {
-          role: msg.role === 'user' ? 'user' : 'assistant',
+          role: msg.role,
           content: [
             { type: 'text', text: msg.content },
-            {
-              type: 'image_url',
-              image_url: {
-                url: msg.attachment.content
-              }
-            }
+            { type: 'image_url', image_url: { url: msg.attachment.content } }
           ]
         };
       }
-
-      return {
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      };
+      return { role: msg.role, content: msg.content };
     });
 
-    // Add the last message
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.attachment) {
-      apiMessages.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: lastMessage.content },
-          {
-            type: 'image_url',
-            image_url: {
-              url: lastMessage.attachment.content
-            }
-          }
-        ]
-      });
-    } else {
-      apiMessages.push({
-        role: 'user',
-        content: lastMessage.content
-      });
-    }
-
-    // Call Sumopod API
-    const responseText = await callSumopodAPI(
-      sumopodModel,
-      finalSystemInstruction,
-      apiMessages,
-      { maxTokens: 8192, temperature: 0.7 }
-    );
+    // === Call Gemini ===
+    const responseText = await callGeminiAPI(modelId, finalSystemInstruction, apiMessages);
 
     return NextResponse.json({ response: responseText });
 
-  } catch (error: any) {
-    console.error('Chat API Error:', error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Chat API Error:', err);
     return NextResponse.json(
       {
-        error: error.message || 'Failed to process chat request',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: err.message || 'Failed to process chat request',
+        details: process.env.NODE_ENV === 'development' ? err.stack : undefined
       },
       { status: 500 }
     );

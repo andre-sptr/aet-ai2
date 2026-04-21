@@ -538,25 +538,35 @@ export default function MessageBubble({
     }
   };
 
-  return (
-    <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'} group items-start`}>
+  const modeGradients: Record<string, string> = {
+    coding: 'from-blue-600 to-indigo-600',
+    report: 'from-emerald-600 to-teal-600',
+    daily: 'from-violet-600 to-purple-600',
+  };
+  const modeGradient = modeGradients[mode] || 'from-blue-600 to-indigo-600';
 
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm mt-1 ${isUser ? 'bg-slate-200' : 'bg-gradient-to-br from-blue-600 to-indigo-600'}`}>
+  return (
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} group items-end`}>
+
+      {/* Avatar */}
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm
+        ${isUser ? 'bg-slate-200' : `bg-gradient-to-br ${modeGradient}`}`}>
         {isUser ? (
-          <User className="w-4 h-4 text-slate-600" />
+          <User className="w-4 h-4 text-slate-500" />
         ) : (
-          mode === 'coding' ? (
-            <Code className="w-4 h-4 text-white" />
-          ) : mode === 'report' ? (
-            <FileText className="w-4 h-4 text-white" />
-          ) : (
-            <MessageCircle className="w-4 h-4 text-white" />
-          )
+          mode === 'coding' ? <Code className="w-4 h-4 text-white" /> :
+          mode === 'report' ? <FileText className="w-4 h-4 text-white" /> :
+          <MessageCircle className="w-4 h-4 text-white" />
         )}
       </div>
 
       <div className={`flex flex-col gap-1 max-w-[85%] ${isEditing ? 'w-full' : 'w-fit'}`}>
-        <div className={`px-5 py-4 shadow-sm relative transition-all duration-200 ${isUser ? 'bg-blue-600 text-white rounded-[24px] rounded-br-none' : 'bg-white text-slate-800 border border-slate-100 rounded-[24px] rounded-bl-none hover:shadow-md'}`}>
+        <div className={`px-5 py-4 relative transition-all duration-200
+          ${isUser
+            ? `bg-gradient-to-br ${modeGradient} text-white rounded-[22px] rounded-br-none shadow-lg`
+            : `bg-white text-slate-800 border rounded-[22px] rounded-bl-none hover:shadow-md
+               ${isLast ? 'border-blue-100 shadow-sm shadow-blue-50' : 'border-slate-100 shadow-sm'}`
+          }`}>
           {message.attachment && (
             <div className="mb-3">
               {message.attachment.type === 'image' ? (
@@ -703,36 +713,53 @@ export default function MessageBubble({
 
           {!isEditing && (
             <>
-              <div className={`h-[1px] w-full my-3 ${isUser ? 'bg-white/20' : 'bg-slate-100'}`} />
-              <div className={`flex items-center gap-4 text-xs font-medium ${isUser ? 'text-blue-100 justify-end' : 'text-slate-400'}`}>
+              <div className={`h-px w-full my-3 ${isUser ? 'bg-white/15' : 'bg-slate-100'}`} />
+              <div className={`flex items-center gap-3 text-xs font-semibold
+                ${isUser ? 'text-white/70 justify-end' : 'text-slate-400'}`}>
                 {isUser ? (
                   <>
                     {isEditable && (
-                      <button 
+                      <button
                         onClick={() => onEdit?.(message)}
-                        className="flex items-center gap-1.5 hover:text-white transition-colors"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-white/20 hover:text-white transition-all duration-150 active:scale-95"
                         title="Edit Pesan"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3 h-3" />
                         <span>Edit</span>
                       </button>
                     )}
-                    <button onClick={handleCopy} className="flex items-center gap-1.5 hover:text-white transition-colors">
-                      {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-white/20 hover:text-white transition-all duration-150 active:scale-95"
+                    >
+                      {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                       <span>{isCopied ? 'Tersalin' : 'Salin'}</span>
                     </button>
                   </>
                 ) : (
                   <>
-                    <button onClick={handleRead} className={`flex items-center gap-1.5 hover:text-blue-600 transition-colors ${isReading ? 'text-blue-600 font-bold' : ''}`}>
-                      <Volume2 className="w-3.5 h-3.5" /> <span>{isReading ? 'Stop' : 'Baca'}</span>
+                    <button
+                      onClick={handleRead}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-lg transition-all duration-150 active:scale-95
+                        ${isReading ? 'text-blue-600 bg-blue-50 font-bold' : 'hover:bg-slate-100 hover:text-blue-600'}`}
+                    >
+                      <Volume2 className="w-3 h-3" />
+                      <span>{isReading ? 'Stop' : 'Baca'}</span>
                     </button>
-                    <button onClick={handleCopy} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
-                      {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} <span>{isCopied ? 'Tersalin' : 'Salin'}</span>
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-slate-100 hover:text-blue-600 transition-all duration-150 active:scale-95"
+                    >
+                      {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                      <span>{isCopied ? 'Tersalin' : 'Salin'}</span>
                     </button>
                     {isLast && (
-                      <button onClick={() => onRetry?.(message)} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
-                        <RotateCw className="w-3.5 h-3.5" /> <span>Ulangi</span>
+                      <button
+                        onClick={() => onRetry?.(message)}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-slate-100 hover:text-blue-600 transition-all duration-150 active:scale-95"
+                      >
+                        <RotateCw className="w-3 h-3" />
+                        <span>Ulangi</span>
                       </button>
                     )}
                   </>
@@ -776,8 +803,8 @@ export default function MessageBubble({
           )}
         </div>
 
-        <div className={`flex items-center gap-1.5 px-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-          <span className="text-[10px] text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`flex items-center gap-1.5 px-1 mt-0.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+          <span className="text-[10px] text-slate-300 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             {new Date(message.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
