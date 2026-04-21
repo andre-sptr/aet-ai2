@@ -11,6 +11,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@vercel/blob": "^2.0.0",
+    "katex": "^0.16.45",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
     "mermaid": "^11.12.2",
@@ -20,8 +21,10 @@
     "react-dom": "19.2.1",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.0",
+    "rehype-katex": "^7.0.1",
     "remark-breaks": "^4.0.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@prisma/client": "^5.22.0",
@@ -33,6 +36,7 @@
     "@types/react-dom": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
     "babel-plugin-react-compiler": "1.0.0",
+    "baseline-browser-mapping": "^2.10.20",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "prisma": "^5.22.0",

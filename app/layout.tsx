@@ -34,6 +34,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className={`${fontSans.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
         {children}
       </body>
