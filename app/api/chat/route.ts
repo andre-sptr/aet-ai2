@@ -3,11 +3,14 @@ import { ChatMode } from '@/types';
 import mammoth from 'mammoth';
 import fs from 'fs';
 import path from 'path';
-import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
-// === Google Gemini AI Studio Configuration ===
+// === Vertex AI Express / Gemini Configuration ===
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const ai = new GoogleGenAI({
+  vertexai: true,
+  apiKey: GEMINI_API_KEY
+});
 
 const COMMON_SYSTEM = `
 Kamu adalah asisten AI Himpunan Mahasiswa AET PCR. Kamu dibuat oleh *Andre Saputra, S.Tr.T. e16[G'21 TET PCR]*
@@ -343,27 +346,15 @@ async function callGeminiAPI(
   systemInstruction: string,
   messages: Array<{ role: string; content: string | { type: string; text?: string; image_url?: { url: string } }[] }>,
 ): Promise<string> {
-  // Map model ID: strip "gemini/" prefix jika ada
   const cleanModelId = modelId.replace(/^gemini\//, '');
 
-  const model = genAI.getGenerativeModel({
-    model: cleanModelId,
-    systemInstruction: systemInstruction,
-    generationConfig: {
-      maxOutputTokens: 8192,
-      temperature: 0.7,
-    },
-  });
+  const contents: any[] = [];
 
-  // Build history (semua kecuali pesan terakhir)
-  const history: Content[] = [];
-
-  for (const msg of messages.slice(0, -1)) {
+  for (const msg of messages) {
     const role = msg.role === 'user' ? 'user' : 'model';
 
     if (Array.isArray(msg.content)) {
-      // Multimodal message
-      const parts: Part[] = [];
+      const parts: any[] = [];
       for (const part of msg.content) {
         if (part.type === 'text' && part.text) {
           parts.push({ text: part.text });
@@ -379,39 +370,23 @@ async function callGeminiAPI(
           });
         }
       }
-      history.push({ role, parts });
+      contents.push({ role, parts });
     } else {
-      history.push({ role, parts: [{ text: msg.content as string }] });
+      contents.push({ role, parts: [{ text: msg.content as string }] });
     }
   }
 
-  // Build last user message
-  const lastMsg = messages[messages.length - 1];
-  const lastParts: Part[] = [];
-
-  if (Array.isArray(lastMsg.content)) {
-    for (const part of lastMsg.content) {
-      if (part.type === 'text' && part.text) {
-        lastParts.push({ text: part.text });
-      } else if (part.type === 'image_url' && part.image_url?.url) {
-        const url = part.image_url.url;
-        const base64Data = cleanBase64(url);
-        const mimeType = url.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-        lastParts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType as 'image/jpeg' | 'image/png',
-          }
-        });
-      }
+  const response = await ai.models.generateContent({
+    model: cleanModelId,
+    contents: contents,
+    config: {
+      systemInstruction: systemInstruction,
+      temperature: 0.7,
+      maxOutputTokens: 8192,
     }
-  } else {
-    lastParts.push({ text: lastMsg.content as string });
-  }
+  });
 
-  const chat = model.startChat({ history });
-  const result = await chat.sendMessage(lastParts);
-  return result.response.text();
+  return response.text || '';
 }
 
 // === API Route Handler ===
@@ -431,7 +406,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
     }
 
-    // Default model
     const modelId = userModel || 'gemini-2.5-flash';
 
     let finalSystemInstruction = BASE_SYSTEM_INSTRUCTIONS[mode as ChatMode] || BASE_SYSTEM_INSTRUCTIONS.daily;
